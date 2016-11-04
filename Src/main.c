@@ -35,7 +35,7 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "ws2812b.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -62,6 +62,10 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+const uint8_t ledsNumber = 3;
+LedColor leds[ledsNumber];
+PwmColor pwmColor[ledsNumber];
+
 uint8_t dmaBuffer[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -78,7 +82,8 @@ uint8_t dmaBuffer[] = {
   8, 8, 8, 8, 8, 8, 8, 8,			//G
   8, 8, 8, 8, 8, 8, 20, 8 			//B
 	};
-uint8_t bufferSize = sizeof(dmaBuffer);
+//uint8_t bufferSize = sizeof(dmaBuffer);
+uint8_t bufferSize = ledsNumber * 3 * 8;
 /* USER CODE END 0 */
 
 int main(void)
@@ -105,8 +110,26 @@ int main(void)
 	//HAL_TIM_Base_Start_IT(&htim6);
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
 	//TIM3->CCR4 = 20;
+    leds[0].Red = 32;
+    leds[0].Green = 0;
+    leds[0].Blue = 0;
+    
+    leds[1].Red = 0;
+    leds[1].Green = 32;
+    leds[1].Blue = 0;
+    
+    leds[2].Red = 0;
+    leds[2].Green = 0;
+    leds[2].Blue = 32;
+    
+    for (int i=0; i<ledsNumber; i++)
+    {
+        ConvertColorLedToPwm(&leds[i], &pwmColor[i]);
+    }
+    
+    
 	HAL_Delay(1000);
-	HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)dmaBuffer, bufferSize);
+	HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
   /* USER CODE END 2 */
 
   /* Infinite loop */
