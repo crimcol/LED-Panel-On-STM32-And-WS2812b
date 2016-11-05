@@ -62,28 +62,53 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-const uint8_t ledsNumber = 3;
+const uint8_t ledsNumber = 4;
+const uint8_t preambleSize = 2;
 LedColor leds[ledsNumber];
-PwmColor pwmColor[ledsNumber];
+PwmColor pwmColor[preambleSize + ledsNumber];
 
-uint8_t dmaBuffer[] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-  8, 8, 8, 8, 8, 8, 20, 8,			//R
-  8, 8, 8, 8, 8, 8, 8, 8,			//G
-  8, 8, 8, 8, 8, 8, 8, 8, 			//B
-	8, 8, 8, 8, 8, 8, 8, 8,			//R
-  8, 8, 8, 8, 8, 8, 20, 8,			//G
-  8, 8, 8, 8, 8, 8, 8, 8, 			//B
-	8, 8, 8, 8, 8, 8, 8, 8,			//R
-  8, 8, 8, 8, 8, 8, 8, 8,			//G
-  8, 8, 8, 8, 8, 8, 20, 8 			//B
-	};
-//uint8_t bufferSize = sizeof(dmaBuffer);
-uint8_t bufferSize = ledsNumber * 3 * 8;
+uint16_t bufferSize = (preambleSize + ledsNumber) * 3 * 8;
+    
+void SetLedColor(LedColor * leds, PwmColor *pwmColor, uint16_t index, LedColor *color)
+{
+    leds[index].Red = color->Red;
+    leds[index].Green = color->Green;
+    leds[index].Blue = color->Blue;
+    
+    ConvertColorLedToPwm(&leds[index], &pwmColor[preambleSize + index]);
+}
+
+void ClearAllLeds(LedColor * leds, PwmColor *pwmColor)
+{
+    for(int i = 0; i < ledsNumber; i++)
+    {
+        ClearLedColor(&leds[i]);
+    }
+    
+    for(int i = 0; i < preambleSize + ledsNumber; i++)
+    {
+        ClearPwmColor(&pwmColor[i]);
+    }
+}
+
+void ConvertAllLedsToPwm(LedColor * leds, PwmColor *pwmColor)
+{
+    for(int i = 0; i < ledsNumber; i++)
+    {
+        ConvertColorLedToPwm(&leds[i], &pwmColor[preambleSize + i]);
+    }
+}
+
+void MoveLeds(LedColor * leds, PwmColor *pwmColor)
+{
+    LedColor temp = leds[ledsNumber - 1];
+    
+    for(int i=ledsNumber - 1; i > 0; i--)
+    {
+        leds[i] = leds[i - 1];
+    }
+    leds[0] = temp;
+}
 /* USER CODE END 0 */
 
 int main(void)
@@ -110,37 +135,70 @@ int main(void)
 	//HAL_TIM_Base_Start_IT(&htim6);
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
 	//TIM3->CCR4 = 20;
-    leds[0].Red = 32;
-    leds[0].Green = 0;
-    leds[0].Blue = 0;
+    ClearAllLeds(leds, pwmColor);
+    uint8_t light = 2;
     
-    leds[1].Red = 0;
-    leds[1].Green = 32;
-    leds[1].Blue = 0;
+    LedColor greenColor = { .Red = 0, .Green = light, .Blue = 0};
+    LedColor redColor = { .Red = light, .Green = 0, .Blue = 0};
+    LedColor blueColor = { .Red = 0, .Green = 0, .Blue = light};
+    LedColor yellowColor = { .Red = light, .Green = light, .Blue = 0};
     
-    leds[2].Red = 0;
-    leds[2].Green = 0;
-    leds[2].Blue = 32;
+    //for(int i=0; i<ledsNumber; i++)
+    //{
+    //    if (i%9 == 0)
+    //    {
+    //        SetLedColor(leds, pwmColor, i, &greenColor);
+    //    }
+    //    else if (i%6 == 0)
+    //    {
+    //        SetLedColor(leds, pwmColor, i, &blueColor);
+    //    }
+    //    else if (i%3 == 0)
+    //    {
+    //        SetLedColor(leds, pwmColor, i, &redColor);
+    //    }
+    //    else
+    //    {
+    //        SetLedColor(leds, pwmColor, i, &yellowColor);
+    //    }
+    //}
     
-    for (int i=0; i<ledsNumber; i++)
-    {
-        ConvertColorLedToPwm(&leds[i], &pwmColor[i]);
-    }
+    SetLedColor(leds, pwmColor, 0, &greenColor);
+    SetLedColor(leds, pwmColor, 1, &redColor);
+    SetLedColor(leds, pwmColor, 2, &blueColor);
+    SetLedColor(leds, pwmColor, 3, &yellowColor);
     
     
-	HAL_Delay(1000);
-	HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
+	//HAL_Delay(1000);
+	//HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+    while (1)
+    {
+        //redColor.Red = light + 1;
+        //SetLedColor(leds, pwmColor, 0, &redColor);
+        //HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
+        //light++;
+        //
+        //if (light == 255)
+        //{
+        //    light = 0;
+        //}
+        //HAL_Delay(125);
+        
+        HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
+        
+        MoveLeds(leds, pwmColor);
+        ConvertAllLedsToPwm(leds, pwmColor);
+        HAL_Delay(125);
+        
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
 
-  }
+    }
   /* USER CODE END 3 */
 
 }

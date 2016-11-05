@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#define WS2812B_PULSE_HIGH      21
-#define WS2812B_PULSE_LOW       9
+#define WS2812B_PULSE_HIGH      20
+#define WS2812B_PULSE_LOW       10
 
 typedef struct LedColor
 {
@@ -13,7 +13,8 @@ typedef struct LedColor
 	uint8_t Blue;
 } LedColor;
 
-typedef __packed struct PwmColor
+typedef struct PwmColor
+//typedef struct __attribute__((packed)) PwmColor
 {
     uint8_t Green[8];
     uint8_t Red[8];
@@ -21,5 +22,7 @@ typedef __packed struct PwmColor
 } PwmColor;
 
 void ConvertColorLedToPwm(LedColor *source, PwmColor *destination);
+void ClearLedColor(LedColor *color);
+void ClearPwmColor(PwmColor *color);
 
 #endif //__WS2812B_H

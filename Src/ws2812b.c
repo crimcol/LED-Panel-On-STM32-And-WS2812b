@@ -25,9 +25,12 @@ static inline uint8_t LEDGamma(uint8_t value)
 
 void ConvertColorLedToPwm(LedColor *source, PwmColor *destination)
 {
-    uint8_t r = LEDGamma(source->Red);
-    uint8_t g = LEDGamma(source->Green);
-    uint8_t b = LEDGamma(source->Blue);
+    //uint8_t r = LEDGamma(source->Red);
+    //uint8_t g = LEDGamma(source->Green);
+    //uint8_t b = LEDGamma(source->Blue);
+    uint8_t r = source->Red;
+    uint8_t g = source->Green;
+    uint8_t b = source->Blue;
 
     uint8_t mask = 128;
 
@@ -38,5 +41,22 @@ void ConvertColorLedToPwm(LedColor *source, PwmColor *destination)
         destination->Blue[i] = b & mask ? WS2812B_PULSE_HIGH : WS2812B_PULSE_LOW;
 
         mask >>= 1;
+    }
+}
+
+void ClearLedColor(LedColor *color)
+{
+    color->Red = 0;
+    color->Green = 0;
+    color->Blue = 0;
+}
+
+void ClearPwmColor(PwmColor *color)
+{
+    for(int i = 0; i < 8; i++)
+    {
+        color->Red[i] = 0;
+        color->Green[i] = 0;
+        color->Blue[i] = 0;
     }
 }
