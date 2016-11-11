@@ -25,12 +25,12 @@ static inline uint8_t LEDGamma(uint8_t value)
 
 void ConvertColorLedToPwm(LedColor *source, PwmColor *destination)
 {
-    //uint8_t r = LEDGamma(source->Red);
-    //uint8_t g = LEDGamma(source->Green);
-    //uint8_t b = LEDGamma(source->Blue);
-    uint8_t r = source->Red;
-    uint8_t g = source->Green;
-    uint8_t b = source->Blue;
+    uint8_t r = LEDGamma(source->Red);
+    uint8_t g = LEDGamma(source->Green);
+    uint8_t b = LEDGamma(source->Blue);
+    //uint8_t r = source->Red;
+    //uint8_t g = source->Green;
+    //uint8_t b = source->Blue;
 
     uint8_t mask = 128;
 

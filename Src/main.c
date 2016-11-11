@@ -42,6 +42,8 @@
 TIM_HandleTypeDef htim3;
 DMA_HandleTypeDef hdma_tim3_ch4_up;
 
+UART_HandleTypeDef huart1;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
@@ -52,7 +54,8 @@ void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
-static void MX_TIM3_Init(void);                                    
+static void MX_TIM3_Init(void);
+static void MX_USART1_UART_Init(void);                                    
 void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
                                 
 
@@ -62,6 +65,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+uint8_t aRxBuffer[6];
+
+
 const uint8_t ledsNumber = 4;
 const uint8_t preambleSize = 2;
 LedColor leds[ledsNumber];
@@ -76,6 +82,14 @@ void SetLedColor(LedColor * leds, PwmColor *pwmColor, uint16_t index, LedColor *
     leds[index].Blue = color->Blue;
     
     ConvertColorLedToPwm(&leds[index], &pwmColor[preambleSize + index]);
+}
+
+void SetAllLedColor(LedColor * leds, PwmColor *pwmColor, LedColor *color)
+{
+    for(int i = 0; i < ledsNumber; i++)
+    {
+        SetLedColor(leds, pwmColor, i, color);
+    }
 }
 
 void ClearAllLeds(LedColor * leds, PwmColor *pwmColor)
@@ -130,6 +144,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM3_Init();
+  MX_USART1_UART_Init();
 
   /* USER CODE BEGIN 2 */
 	//HAL_TIM_Base_Start_IT(&htim6);
@@ -168,6 +183,9 @@ int main(void)
     SetLedColor(leds, pwmColor, 2, &blueColor);
     SetLedColor(leds, pwmColor, 3, &yellowColor);
     
+    //HAL_UART_Transmit(&huart1, (uint8_t *)"hello\r\n", 7, 5000);
+    HAL_UART_Transmit_IT(&huart1, (uint8_t *)"hello\r\n", 7);
+    HAL_UART_Receive_IT(&huart1, aRxBuffer, 3);
     
 	//HAL_Delay(1000);
 	//HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
@@ -187,12 +205,10 @@ int main(void)
         //    light = 0;
         //}
         //HAL_Delay(125);
-        
-        HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
-        
         MoveLeds(leds, pwmColor);
         ConvertAllLedsToPwm(leds, pwmColor);
-        HAL_Delay(125);
+        HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
+        HAL_Delay(250);
         
   /* USER CODE END WHILE */
 
@@ -299,6 +315,25 @@ static void MX_TIM3_Init(void)
 
 }
 
+/* USART1 init function */
+static void MX_USART1_UART_Init(void)
+{
+
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
+
 /** 
   * Enable DMA controller clock
   */
@@ -321,6 +356,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
 }
 
@@ -334,6 +370,14 @@ static void MX_GPIO_Init(void)
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
 	HAL_TIM_PWM_Stop_DMA(&htim3, TIM_CHANNEL_4);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    LedColor receivedColor = { .Red = aRxBuffer[0], .Green = aRxBuffer[1], .Blue = aRxBuffer[2]};
+    SetAllLedColor(leds, pwmColor, &receivedColor);
+    HAL_UART_Transmit_IT(&huart1, aRxBuffer, 3);
+    HAL_UART_Receive_IT(&huart1, aRxBuffer, 3);
 }
 /* USER CODE END 4 */
 
