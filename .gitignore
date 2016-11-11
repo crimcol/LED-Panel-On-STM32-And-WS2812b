@@ -1,3 +1,6 @@
 stm32f1_ws2812b_dma
 /MDK-ARM/stm32f1_ws2812b_dma.uvguix.Volodymyr
 /Inc/*.TMP
+/Led Panel Control/bin
+/Led Panel Control/obj
+/Led Panel Control/.vs
