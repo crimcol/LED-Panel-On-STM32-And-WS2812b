@@ -30,12 +30,13 @@ namespace Led_Panel_Control
         {
             SerialPort serialPort = new SerialPort();
             serialPort.PortName = portName;
-            serialPort.BaudRate = 9600;
+            serialPort.BaudRate = 115200;
             serialPort.Parity = Parity.None;
             serialPort.DataBits = 8;
             serialPort.StopBits = StopBits.One;
             serialPort.Handshake = Handshake.None;
             serialPort.DataReceived += SerialPort_DataReceived;
+            serialPort.Encoding = Encoding.GetEncoding(28591);
 
             return serialPort;
         }
@@ -61,7 +62,7 @@ namespace Led_Panel_Control
 
         private void SendColor(Color color)
         {
-            string colorRGBText = string.Format("{0}{1}{2}", (char)color.R, (char)color.G, (char)color.B);
+            string colorRGBText = string.Format("A{0}{1}{2}", (char)color.R, (char)color.G, (char)color.B);
             SendText(colorRGBText);
         }
 

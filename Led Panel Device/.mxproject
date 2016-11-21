@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=D:/10._Work/11._SmartDevices/stm32_projects/stm32f1_ws2812b_dma/Inc
+HeaderPath=D:/10._Work/11._SmartDevices/stm32_projects/stm32f1_ws2812b_dma/Led Panel Device/Inc
 HeaderFiles=stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;
-SourcePath=D:/10._Work/11._SmartDevices/stm32_projects/stm32f1_ws2812b_dma/Src
+SourcePath=D:/10._Work/11._SmartDevices/stm32_projects/stm32f1_ws2812b_dma/Led Panel Device/Src
 SourceFiles=stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;stm32f1xx_it.c;stm32f1xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]

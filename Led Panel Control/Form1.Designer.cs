@@ -108,7 +108,7 @@
             this.comboBox1.Name = "comboBox1";
             this.comboBox1.Size = new System.Drawing.Size(88, 21);
             this.comboBox1.TabIndex = 0;
-            this.comboBox1.Text = "COM9";
+            this.comboBox1.Text = "COM4";
             // 
             // panelSelectedColor
             // 
