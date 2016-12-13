@@ -65,18 +65,20 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-uint8_t aRxBuffer[1];
-uint8_t currentLedNumber = 0;
-uint8_t colorPosition = 0;
-uint8_t receivedByte = 0;
 
-const uint8_t ledsNumber = 57;
+const uint8_t ledsNumber = 150;
 const uint8_t preambleSize = 2;
 LedColor leds[ledsNumber];
 PwmColor pwmColor[preambleSize + ledsNumber];
 
 uint16_t bufferSize = (preambleSize + ledsNumber) * 3 * 8;
 volatile uint8_t setLeds = 0;
+
+const uint16_t colorPacketSize = ledsNumber * 3 + 1;
+uint8_t aRxBuffer[colorPacketSize];
+uint8_t currentLedNumber = 0;
+uint8_t colorPosition = 0;
+uint8_t receivedByte = 0;
     
 void SetLedColor(LedColor * leds, PwmColor *pwmColor, uint16_t index, LedColor *color)
 {
@@ -190,7 +192,7 @@ int main(void)
     //HAL_UART_Transmit(&huart1, (uint8_t *)"hello\r\n", 7, 5000);
     //HAL_Delay(5000);
     //HAL_UART_Transmit_IT(&huart1, (uint8_t *)"hello\r\n", 7);
-    HAL_UART_Receive_IT(&huart1, aRxBuffer, 1);
+    HAL_UART_Receive_IT(&huart1, aRxBuffer, colorPacketSize);
     
 	//HAL_Delay(1000);
 	//HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
@@ -198,13 +200,23 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+    uint16_t i = 0;
     while (1)
     {
         if (setLeds == 1)
         {
+            for(i = 0; i < ledsNumber; i++)
+            {
+                leds[i].Red = aRxBuffer[1 + i * 3 + 0];
+                leds[i].Green = aRxBuffer[1 + i * 3 + 1];
+                leds[i].Blue = aRxBuffer[1 + i * 3 + 2];
+            }
+            ConvertAllLedsToPwm(leds, pwmColor);
+            
             HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
-            HAL_UART_Receive_IT(&huart1, aRxBuffer, 1);
-            //HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+            //HAL_UART_Receive_IT(&huart1, aRxBuffer, colorPacketSize);
+            HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+            
             setLeds = 0;
         }
         
@@ -408,6 +420,10 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+    
+    setLeds = 1;
+    HAL_UART_Receive_IT(&huart1, aRxBuffer, colorPacketSize);
+    /*
     receivedByte = aRxBuffer[0];
     
     if (receivedByte == 1)
@@ -438,11 +454,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     
     if (currentLedNumber == ledsNumber - 1)
     {
-        HAL_UART_Transmit_IT(&huart1, (uint8_t*)"OK\n\r", 4);
+        //HAL_UART_Transmit_IT(&huart1, (uint8_t*)"OK\n\r", 4);
         ConvertAllLedsToPwm(leds, pwmColor);
         setLeds = 1;
     }
-    
+    HAL_UART_Receive_IT(&huart1, aRxBuffer, 1);
+    */
     //LedColor receivedColor = { .Red = aRxBuffer[1], .Green = aRxBuffer[2], .Blue = aRxBuffer[3]};
     //SetAllLedColor(leds, pwmColor, &receivedColor);
     //HAL_UART_Transmit_IT(&huart1, (uint8_t*)"OK\n\r", 4);

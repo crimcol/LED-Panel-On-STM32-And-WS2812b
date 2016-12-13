@@ -62,7 +62,14 @@ namespace Led_Panel_Control
 
         private void SendColor(Color color)
         {
-            string colorRGBText = string.Format("A{0}{1}{2}", (char)color.R, (char)color.G, (char)color.B);
+            string begin = new string(new char[] { (char)1});
+            string colorRGBText = begin;
+
+            for (int i = 0; i < 25; i++)
+            {
+                colorRGBText += string.Format("{0}{1}{2}", (char)color.R, (char)color.G, (char)color.B);
+            }
+
             SendText(colorRGBText);
         }
 
