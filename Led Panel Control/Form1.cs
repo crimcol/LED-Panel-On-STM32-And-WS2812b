@@ -65,7 +65,7 @@ namespace Led_Panel_Control
             string begin = new string(new char[] { (char)1});
             string colorRGBText = begin;
 
-            for (int i = 0; i < 25; i++)
+            for (int i = 0; i < 90; i++)
             {
                 colorRGBText += string.Format("{0}{1}{2}", (char)color.R, (char)color.G, (char)color.B);
             }

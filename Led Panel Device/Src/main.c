@@ -66,9 +66,10 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN 0 */
 
-const uint8_t ledsNumber = 150;
+const uint8_t ledsNumber = 90;
 const uint8_t preambleSize = 2;
-LedColor leds[ledsNumber];
+const uint8_t preambleShift = preambleSize - 1;
+//LedColor leds[ledsNumber];
 PwmColor pwmColor[preambleSize + ledsNumber];
 
 uint16_t bufferSize = (preambleSize + ledsNumber) * 3 * 8;
@@ -80,29 +81,29 @@ uint8_t currentLedNumber = 0;
 uint8_t colorPosition = 0;
 uint8_t receivedByte = 0;
     
-void SetLedColor(LedColor * leds, PwmColor *pwmColor, uint16_t index, LedColor *color)
+void SetLedColor(/*LedColor * leds,*/ PwmColor *pwmColor, uint16_t index, LedColor *color)
 {
-    leds[index].Red = color->Red;
-    leds[index].Green = color->Green;
-    leds[index].Blue = color->Blue;
+    //leds[index].Red = color->Red;
+    //leds[index].Green = color->Green;
+    //leds[index].Blue = color->Blue;
     
-    ConvertColorLedToPwm(&leds[index], &pwmColor[preambleSize + index]);
+    ConvertColorLedToPwm(color, &pwmColor[preambleShift + index]);
 }
 
 void SetAllLedColor(LedColor * leds, PwmColor *pwmColor, LedColor *color)
 {
     for(int i = 0; i < ledsNumber; i++)
     {
-        SetLedColor(leds, pwmColor, i, color);
+        SetLedColor(/*leds, */pwmColor, i, color);
     }
 }
 
-void ClearAllLeds(LedColor * leds, PwmColor *pwmColor)
+void ClearAllLeds(/*LedColor * leds, */PwmColor *pwmColor)
 {
-    for(int i = 0; i < ledsNumber; i++)
-    {
-        ClearLedColor(&leds[i]);
-    }
+    //for(int i = 0; i < ledsNumber; i++)
+    //{
+    //    ClearLedColor(&leds[i]);
+    //}
     
     for(int i = 0; i < preambleSize + ledsNumber; i++)
     {
@@ -114,7 +115,7 @@ void ConvertAllLedsToPwm(LedColor * leds, PwmColor *pwmColor)
 {
     for(int i = 0; i < ledsNumber; i++)
     {
-        ConvertColorLedToPwm(&leds[i], &pwmColor[preambleSize + i]);
+        ConvertColorLedToPwm(&leds[i], &pwmColor[preambleShift + i]);
     }
 }
 
@@ -155,9 +156,10 @@ int main(void)
 	//HAL_TIM_Base_Start_IT(&htim6);
 	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
 	//TIM3->CCR4 = 20;
-    ClearAllLeds(leds, pwmColor);
-    uint8_t light = 64;
+    ClearAllLeds(/*leds, */pwmColor);
+    uint8_t light = 2;
     
+    LedColor mixColor = { .Red = light, .Green = light, .Blue = light};    
     LedColor greenColor = { .Red = 0, .Green = light, .Blue = 0};
     LedColor redColor = { .Red = light, .Green = 0, .Blue = 0};
     LedColor blueColor = { .Red = 0, .Green = 0, .Blue = light};
@@ -183,10 +185,11 @@ int main(void)
     //    }
     //}
     
-    SetLedColor(leds, pwmColor, 0, &greenColor);
-    SetLedColor(leds, pwmColor, 1, &redColor);
-    SetLedColor(leds, pwmColor, 2, &blueColor);
-    SetLedColor(leds, pwmColor, 3, &yellowColor);
+    SetLedColor(/*leds, */pwmColor, 0, &greenColor);
+    SetLedColor(/*leds, */pwmColor, 1, &redColor);
+    SetLedColor(/*leds, */pwmColor, 2, &blueColor);
+    SetLedColor(/*leds, */pwmColor, 3, &yellowColor);
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
     HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
     
     //HAL_UART_Transmit(&huart1, (uint8_t *)"hello\r\n", 7, 5000);
@@ -201,17 +204,21 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
     uint16_t i = 0;
+    LedColor tempColor = { .Red = 0, .Green = 0, .Blue = 0};
     while (1)
     {
         if (setLeds == 1)
         {
+            
             for(i = 0; i < ledsNumber; i++)
             {
-                leds[i].Red = aRxBuffer[1 + i * 3 + 0];
-                leds[i].Green = aRxBuffer[1 + i * 3 + 1];
-                leds[i].Blue = aRxBuffer[1 + i * 3 + 2];
+                
+                tempColor.Red = aRxBuffer[1 + i * 3 + 0];
+                tempColor.Green = aRxBuffer[1 + i * 3 + 1];
+                tempColor.Blue = aRxBuffer[1 + i * 3 + 2];
+                SetLedColor(pwmColor, i, &tempColor);
             }
-            ConvertAllLedsToPwm(leds, pwmColor);
+            //ConvertAllLedsToPwm(leds, pwmColor);
             
             HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
             //HAL_UART_Receive_IT(&huart1, aRxBuffer, colorPacketSize);
@@ -302,7 +309,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 29;
+  htim3.Init.Period = 30;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
@@ -405,12 +412,13 @@ static void MX_GPIO_Init(void)
 
 //void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //{
-//	HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_11);
+//	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
 //}
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
 	HAL_TIM_PWM_Stop_DMA(&htim3, TIM_CHANNEL_4);
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
