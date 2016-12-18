@@ -36,7 +36,7 @@
 #include "stm32f1xx_it.h"
 
 /* USER CODE BEGIN 0 */
-
+extern void DMA_Half_Completed(void);
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -195,7 +195,13 @@ void DMA1_Channel3_IRQHandler(void)
   /* USER CODE END DMA1_Channel3_IRQn 0 */
   HAL_DMA_IRQHandler(&hdma_tim3_ch4_up);
   /* USER CODE BEGIN DMA1_Channel3_IRQn 1 */
-
+    
+    if (HAL_DMA_GetState(&hdma_tim3_ch4_up) == HAL_DMA_STATE_READY_HALF)
+    {
+        DMA_Half_Completed();
+    }
+    
+    
   /* USER CODE END DMA1_Channel3_IRQn 1 */
 }
 

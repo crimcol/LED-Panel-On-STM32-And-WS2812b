@@ -39,6 +39,7 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.colorDialog1 = new System.Windows.Forms.ColorDialog();
+            this.StartFpsButton = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -55,6 +56,7 @@
             // 
             // splitContainer1.Panel1
             // 
+            this.splitContainer1.Panel1.Controls.Add(this.StartFpsButton);
             this.splitContainer1.Panel1.Controls.Add(this.button2);
             this.splitContainer1.Panel1.Controls.Add(this.button1);
             this.splitContainer1.Panel1.Controls.Add(this.label1);
@@ -158,6 +160,16 @@
             // 
             this.colorDialog1.FullOpen = true;
             // 
+            // StartFpsButton
+            // 
+            this.StartFpsButton.Location = new System.Drawing.Point(12, 77);
+            this.StartFpsButton.Name = "StartFpsButton";
+            this.StartFpsButton.Size = new System.Drawing.Size(75, 23);
+            this.StartFpsButton.TabIndex = 4;
+            this.StartFpsButton.Text = "Start";
+            this.StartFpsButton.UseVisualStyleBackColor = true;
+            this.StartFpsButton.Click += new System.EventHandler(this.StartFpsButton_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -189,6 +201,7 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.ColorDialog colorDialog1;
         private System.Windows.Forms.Panel panelSelectedColor;
+        private System.Windows.Forms.Button StartFpsButton;
     }
 }
 

@@ -61,18 +61,26 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+void DMA_Half_Completed(void);
+void DMA_All_Completed(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
 
-const uint8_t ledsNumber = 90;
-const uint8_t preambleSize = 2;
-const uint8_t preambleShift = preambleSize - 1;
-//LedColor leds[ledsNumber];
-PwmColor pwmColor[preambleSize + ledsNumber];
+const uint8_t ledsNumber = 150;
+const uint8_t pwmColorShortSize = 2;
+const uint8_t ledsSize = ledsNumber;
+LedColor leds[ledsSize];
+uint8_t currentColorIndex = 0;
+uint8_t currentPwmColorIndex = 0;
+LedColor * currentLed;
+PwmColor * currentPwmLed;
+volatile uint8_t isSendCompleted = 0;
+volatile uint8_t doPrepareNextLed = 0;
 
-uint16_t bufferSize = (preambleSize + ledsNumber) * 3 * 8;
+PwmColor pwmColorShort[pwmColorShortSize];
+
+uint16_t bufferSize = pwmColorShortSize * 3 * 8;
 volatile uint8_t setLeds = 0;
 
 const uint16_t colorPacketSize = ledsNumber * 3 + 1;
@@ -81,45 +89,23 @@ uint8_t currentLedNumber = 0;
 uint8_t colorPosition = 0;
 uint8_t receivedByte = 0;
     
-void SetLedColor(/*LedColor * leds,*/ PwmColor *pwmColor, uint16_t index, LedColor *color)
+
+void SetLedColor(LedColor * leds, uint16_t index, LedColor *color)
 {
-    //leds[index].Red = color->Red;
-    //leds[index].Green = color->Green;
-    //leds[index].Blue = color->Blue;
-    
-    ConvertColorLedToPwm(color, &pwmColor[preambleShift + index]);
+    leds[index].Red = color->Red;
+    leds[index].Green = color->Green;
+    leds[index].Blue = color->Blue;
 }
 
-void SetAllLedColor(LedColor * leds, PwmColor *pwmColor, LedColor *color)
+void ClearAllLeds(LedColor * leds)
 {
-    for(int i = 0; i < ledsNumber; i++)
+    for(int i = 0; i < ledsSize; i++)
     {
-        SetLedColor(/*leds, */pwmColor, i, color);
+        ClearLedColor(&leds[i]);
     }
 }
 
-void ClearAllLeds(/*LedColor * leds, */PwmColor *pwmColor)
-{
-    //for(int i = 0; i < ledsNumber; i++)
-    //{
-    //    ClearLedColor(&leds[i]);
-    //}
-    
-    for(int i = 0; i < preambleSize + ledsNumber; i++)
-    {
-        ClearPwmColor(&pwmColor[i]);
-    }
-}
-
-void ConvertAllLedsToPwm(LedColor * leds, PwmColor *pwmColor)
-{
-    for(int i = 0; i < ledsNumber; i++)
-    {
-        ConvertColorLedToPwm(&leds[i], &pwmColor[preambleShift + i]);
-    }
-}
-
-void MoveLeds(LedColor * leds, PwmColor *pwmColor)
+void MoveLeds(LedColor * leds)
 {
     LedColor temp = leds[ledsNumber - 1];
     
@@ -128,6 +114,65 @@ void MoveLeds(LedColor * leds, PwmColor *pwmColor)
         leds[i] = leds[i - 1];
     }
     leds[0] = temp;
+}
+
+void SetColorToPwm(LedColor *ledColor, PwmColor *pwmColor)
+{
+    ConvertColorLedToPwm(ledColor, pwmColor);
+}
+
+LedColor* GetNextLed()
+{
+    if (currentColorIndex == ledsSize - 1)
+    {
+        isSendCompleted = 1;
+    }
+    
+    currentLed = &leds[currentColorIndex];
+    currentColorIndex++;
+    
+    if (currentColorIndex == ledsSize)
+    {
+        currentColorIndex = 0;
+    }
+    
+    return currentLed;
+}
+
+PwmColor* GetNextPwmLed()
+{
+    currentPwmLed = &pwmColorShort[currentPwmColorIndex];
+    currentPwmColorIndex++;
+    
+    if (currentPwmColorIndex == pwmColorShortSize)
+    {
+        currentPwmColorIndex = 0;
+    }
+    
+    return currentPwmLed;
+}
+
+void PrepareNextLed(void)
+{
+    if (isSendCompleted == 1)
+    {
+        ClearPwmColor(GetNextPwmLed());
+        return;
+    }
+    
+    SetColorToPwm(GetNextLed(), GetNextPwmLed());
+}
+
+void SendLedsToDMA()
+{
+    currentColorIndex = 0;
+    currentPwmColorIndex = 0;
+    doPrepareNextLed = 0;
+    isSendCompleted = 0;
+    PrepareNextLed();
+    PrepareNextLed();
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+    HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColorShort, bufferSize);
 }
 /* USER CODE END 0 */
 
@@ -153,13 +198,10 @@ int main(void)
   MX_USART1_UART_Init();
 
   /* USER CODE BEGIN 2 */
-	//HAL_TIM_Base_Start_IT(&htim6);
-	//HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
-	//TIM3->CCR4 = 20;
-    ClearAllLeds(/*leds, */pwmColor);
+    ClearAllLeds(leds);
     uint8_t light = 2;
     
-    LedColor mixColor = { .Red = light, .Green = light, .Blue = light};    
+    //LedColor mixColor = { .Red = light, .Green = light, .Blue = light};    
     LedColor greenColor = { .Red = 0, .Green = light, .Blue = 0};
     LedColor redColor = { .Red = light, .Green = 0, .Blue = 0};
     LedColor blueColor = { .Red = 0, .Green = 0, .Blue = light};
@@ -185,20 +227,13 @@ int main(void)
     //    }
     //}
     
-    SetLedColor(/*leds, */pwmColor, 0, &greenColor);
-    SetLedColor(/*leds, */pwmColor, 1, &redColor);
-    SetLedColor(/*leds, */pwmColor, 2, &blueColor);
-    SetLedColor(/*leds, */pwmColor, 3, &yellowColor);
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-    HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
-    
-    //HAL_UART_Transmit(&huart1, (uint8_t *)"hello\r\n", 7, 5000);
-    //HAL_Delay(5000);
-    //HAL_UART_Transmit_IT(&huart1, (uint8_t *)"hello\r\n", 7);
+    SetLedColor(leds, 0, &greenColor);
+    SetLedColor(leds, 1, &redColor);
+    SetLedColor(leds, 2, &blueColor);
+    SetLedColor(leds, 3, &yellowColor);
+    SendLedsToDMA();
     HAL_UART_Receive_IT(&huart1, aRxBuffer, colorPacketSize);
     
-	//HAL_Delay(1000);
-	//HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -209,38 +244,17 @@ int main(void)
     {
         if (setLeds == 1)
         {
-            
             for(i = 0; i < ledsNumber; i++)
             {
-                
                 tempColor.Red = aRxBuffer[1 + i * 3 + 0];
                 tempColor.Green = aRxBuffer[1 + i * 3 + 1];
                 tempColor.Blue = aRxBuffer[1 + i * 3 + 2];
-                SetLedColor(pwmColor, i, &tempColor);
+                SetLedColor(leds, i, &tempColor);
             }
-            //ConvertAllLedsToPwm(leds, pwmColor);
             
-            HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
-            //HAL_UART_Receive_IT(&huart1, aRxBuffer, colorPacketSize);
-            HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-            
+            SendLedsToDMA();
             setLeds = 0;
         }
-        
-        //redColor.Red = light + 1;
-        //SetLedColor(leds, pwmColor, 0, &redColor);
-        //HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
-        //light++;
-        //
-        //if (light == 255)
-        //{
-        //    light = 0;
-        //}
-        //HAL_Delay(125);
-        //MoveLeds(leds, pwmColor);
-        //ConvertAllLedsToPwm(leds, pwmColor);
-        //HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_4, (uint32_t *)pwmColor, bufferSize);
-        //HAL_Delay(250);
         
   /* USER CODE END WHILE */
 
@@ -398,10 +412,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_7, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PB0 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  /*Configure GPIO pins : PB0 PB7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -410,14 +424,33 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-//{
-//	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-//}
+void DMA_Half_Completed(void)
+{
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+    PrepareNextLed();
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+}
+
+void DMA_All_Completed(void)
+{
+    if (isSendCompleted == 1)
+    {
+        HAL_TIM_PWM_Stop_DMA(&htim3, TIM_CHANNEL_4);
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+        return;
+    }
+    
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+    PrepareNextLed();
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+}
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 {
-	HAL_TIM_PWM_Stop_DMA(&htim3, TIM_CHANNEL_4);
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+    DMA_All_Completed();
     HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
 }
 
@@ -428,49 +461,8 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-    
     setLeds = 1;
     HAL_UART_Receive_IT(&huart1, aRxBuffer, colorPacketSize);
-    /*
-    receivedByte = aRxBuffer[0];
-    
-    if (receivedByte == 1)
-    {
-        currentLedNumber = 0;
-        colorPosition = 0;
-        return;
-    }
-    else if (currentLedNumber != ledsNumber)
-    {
-        if (colorPosition == 0)
-        {
-            leds[currentLedNumber].Red = receivedByte;
-            colorPosition++;
-        }
-        else if (colorPosition == 1)
-        {
-            leds[currentLedNumber].Green = receivedByte;
-            colorPosition++;
-        }
-        else if (colorPosition == 2)
-        {
-            leds[currentLedNumber].Blue = receivedByte;
-            colorPosition = 0;
-            currentLedNumber++;
-        }
-    }
-    
-    if (currentLedNumber == ledsNumber - 1)
-    {
-        //HAL_UART_Transmit_IT(&huart1, (uint8_t*)"OK\n\r", 4);
-        ConvertAllLedsToPwm(leds, pwmColor);
-        setLeds = 1;
-    }
-    HAL_UART_Receive_IT(&huart1, aRxBuffer, 1);
-    */
-    //LedColor receivedColor = { .Red = aRxBuffer[1], .Green = aRxBuffer[2], .Blue = aRxBuffer[3]};
-    //SetAllLedColor(leds, pwmColor, &receivedColor);
-    //HAL_UART_Transmit_IT(&huart1, (uint8_t*)"OK\n\r", 4);
 }
 /* USER CODE END 4 */
 

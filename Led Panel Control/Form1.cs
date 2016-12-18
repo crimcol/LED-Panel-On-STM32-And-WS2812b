@@ -14,7 +14,14 @@ namespace Led_Panel_Control
     public partial class Form1 : Form
     {
         private SerialPort _activeSerialPort;
+        private FpsEngine _fpsEngine;
+        private LedPanelContext _ledContext;
+        private GlediatorProtocol _protocol;
+        private LedPanelForm _ledView;
 
+        private Timer _randomLedTimer;
+        private Random _random;
+        List<Color> _colorList;
         public Form1()
         {
             InitializeComponent();
@@ -24,6 +31,54 @@ namespace Led_Panel_Control
         private void AppInit()
         {
             comboBox1.Items.AddRange(SerialPort.GetPortNames());
+            _fpsEngine = new FpsEngine(FpsHandler);
+            _ledContext = new LedPanelContext(30, 5);
+            _protocol = new GlediatorProtocol();
+            _ledView = new LedPanelForm(_ledContext);
+            _ledView.Show();
+
+            _randomLedTimer = new Timer();
+            _randomLedTimer.Interval = 100;
+            _randomLedTimer.Tick += _randomLedTimer_Tick;
+            //_randomLedTimer.Start();
+            _random = new Random();
+            _colorList = new List<Color>();
+            _colorList.Add(Color.Black);
+            _colorList.Add(Color.FromArgb(0, 0, 64));
+            _colorList.Add(Color.FromArgb(64, 0, 0));
+            _colorList.Add(Color.FromArgb(0, 64, 0));
+        }
+
+        private void _randomLedTimer_Tick(object sender, EventArgs e)
+        {
+            Update1();
+            Update2();
+        }
+
+        private void Update1()
+        {
+            int x = _random.Next(0, _ledContext.Size.Width);
+            int y = _random.Next(0, _ledContext.Size.Height);
+            _ledContext.SetColor(new Point(x, y), _colorList[_random.Next(_colorList.Count - 1)]);
+        }
+
+        int pos = 0;
+        Color green = Color.FromArgb(0, 64, 0);
+        private void Update2()
+        {
+            if (pos == _ledContext.Size.Width * _ledContext.Size.Height - 1)
+            {
+                pos = 0;
+            }
+
+            int y = pos / _ledContext.Size.Width;
+            int x = pos - y * _ledContext.Size.Width;
+            _ledContext.SetColor(new Point(x, y), Color.Black);
+            pos++;
+
+            y = pos / _ledContext.Size.Width;
+            x = pos - y * _ledContext.Size.Width;
+            _ledContext.SetColor(new Point(x, y), green);
         }
 
         private SerialPort CreateSerialPort(string portName)
@@ -49,15 +104,26 @@ namespace Led_Panel_Control
             SetReceivedText(received);
         }
 
-        private void SendText(string text)
+        string lastMessage = string.Empty;
+        private void SendText(string text, bool print = false)
         {
             if (string.IsNullOrWhiteSpace(text))
             {
                 return;
             }
 
+            if (lastMessage == text)
+            {
+                return;
+            }
+
+            lastMessage = text;
             _activeSerialPort.Write(text);
-            SetSendText(text);
+
+            if (print)
+            {
+                SetSendText(text);
+            }
         }
 
         private void SendColor(Color color)
@@ -107,20 +173,25 @@ namespace Led_Panel_Control
         }
         private void SetText(string text, Color? color = null)
         {
-            string formattedText = string.Format("{0}\n", text);
-            Color currentFontColor = richTextBox1.ForeColor;
-
-            if (color.HasValue)
+            Action action = () =>
             {
-                richTextBox1.ForeColor = color.Value;
-            }
+                string formattedText = string.Format("{0}\n", text);
+                Color currentFontColor = richTextBox1.ForeColor;
 
-            richTextBox1.AppendText(formattedText);
+                if (color.HasValue)
+                {
+                    richTextBox1.ForeColor = color.Value;
+                }
 
-            if (color.HasValue)
-            {
-                richTextBox1.ForeColor = currentFontColor;
-            }
+                richTextBox1.AppendText(formattedText);
+
+                if (color.HasValue)
+                {
+                    richTextBox1.ForeColor = currentFontColor;
+                }
+            };
+
+            richTextBox1.Invoke(action);
         }
 
         private void SetInfoText(string text)
@@ -141,6 +212,37 @@ namespace Led_Panel_Control
             {
                 panelSelectedColor.BackColor = colorDialog1.Color;
                 SendColor(colorDialog1.Color);
+            }
+        }
+
+        private void FpsHandler()
+        {
+            var leds = _ledContext.GetLeds();
+            string data = _protocol.Convert(leds);
+            SendText(data);
+
+            RefreshView();
+            
+        }
+
+        private void StartFpsButton_Click(object sender, EventArgs e)
+        {
+            _fpsEngine.Start();
+        }
+
+        private void RefreshView()
+        {
+            // InvokeRequired required compares the thread ID of the
+            // calling thread to the thread ID of the creating thread.
+            // If these threads are different, it returns true.
+            if (_ledView.InvokeRequired)
+            {
+                Action a = _ledView.Repaint;
+                this.Invoke(a, null);
+            }
+            else
+            {
+                _ledView.Repaint();
             }
         }
     }
